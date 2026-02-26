@@ -4,20 +4,7 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, r2_score
 from simstack.core.node import node
 from simstack.models.array_storage import ArrayStorage
-from simstack.models import simstack_model
-from odmantic import Model
-
-@simstack_model
-class ScikitModel(Model):
-    def __init__(self, model):
-        super().__init__()
-        self._model = model
-    
-    def predict(self, X):
-        return self._model.predict(X)
-    
-    def fit(self, X, y):
-        return self._model.fit(X, y)
+from simstack.models.artifact_models import ArtifactModel
 
 @node
 def load_data(storage: ArrayStorage) -> ArrayStorage:
@@ -60,24 +47,28 @@ def train_model(X_train: ArrayStorage, y_train: ArrayStorage):
     """
     model = RandomForestRegressor(n_estimators=100, random_state=42)
     model.fit(X_train.get_array(), y_train.get_array())
-    return model
+    
+    # Return as an ArtifactModel
+    return ArtifactModel(name="random_forest_model", data={"model": model})
 
 @node
-def evaluate_model(model, X_test: ArrayStorage, y_test: ArrayStorage):
+def evaluate_model(model: ArtifactModel, X_test: ArrayStorage, y_test: ArrayStorage):
     """
     Evaluate the model on the test set.
     """
-    predictions = model.predict(X_test.get_array())
+    rf_model = model.data["model"]
+    predictions = rf_model.predict(X_test.get_array())
     mse = mean_squared_error(y_test.get_array(), predictions)
     r2 = r2_score(y_test.get_array(), predictions)
-    return {"mse": mse, "r2": r2}
+    
+    return ArtifactModel(name="evaluation_metrics", data={"mse": mse, "r2": r2})
 
 @node
-def log_metrics(metrics: dict):
+def log_metrics(metrics: ArtifactModel):
     """
     Log the evaluation metrics.
     """
     print(f"Model Evaluation Metrics:")
-    for metric, value in metrics.items():
+    for metric, value in metrics.data.items():
         print(f"  {metric}: {value:.4f}")
     return metrics
