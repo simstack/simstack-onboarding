@@ -1,9 +1,15 @@
-import pandas as pd
+import asyncio
 
+import pandas as pd
+from simstack.core.context import context
 from sklearn.datasets import fetch_california_housing
 
+from public.models.df_model import DataFrameModel
 
-if __name__ != "__main__":
+
+async def main():
+    await context.initialize()
+
     housing = fetch_california_housing()
     X = housing.data[:30]
     y = housing.target[:30]
@@ -11,5 +17,8 @@ if __name__ != "__main__":
     df = pd.DataFrame(X, columns=housing.feature_names)
     df['target'] = y
 
-    print(df.shape)
-    print(df.head())
+    df_model = DataFrameModel(field_name="housing_dataset")
+    await context.db.save(df_model)
+
+if __name__ == "__main__":
+    asyncio.run(main())
