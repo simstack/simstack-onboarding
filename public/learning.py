@@ -1,10 +1,9 @@
 import asyncio
+from typing import Any
 
 import numpy as np
-from docutils.nodes import field_name
-from pandas.core.interchange.dataframe_protocol import DataFrame
 from simstack.core.context import context
-from simstack.models import StringData
+from simstack.models import StringData, FloatData, IntData
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, r2_score
@@ -16,9 +15,9 @@ from public.models.df_model import DataFrameModel
 
 
 @node
-async def load_data(name: StringData,**kwargs) -> DataFrame:
+async def load_data(name: StringData, **kwargs) -> DataFrameModel:
     """
-    Load data from an ArrayStorage object.
+    Load data from a DataFrameModel object.
     """
     node_runner = kwargs.get("node_runner")
     node_runner.info(f"loading data from {name.value}")
@@ -28,12 +27,14 @@ async def load_data(name: StringData,**kwargs) -> DataFrame:
     return storage
 
 @node
-def split_data(storage: ArrayStorage, test_size: float = 0.2, random_state: int = 42):
+def split_data(storage: DataFrameModel, test_size: FloatData, random_state: IntData = 42,**kwargs):
     """
     Split the data into training and testing sets.
     Assumes the last column is the target.
     """
-    data = storage.get_array()
+    node_runner = kwargs.get("node_runner")
+    df = storage.load_df()
+    data = df.values
     assert data.ndim == 2, "Data must be two-dimensional."
     assert data.shape[1] > 1, "Data must have at least two columns."
     X = data[:, :-1]
@@ -41,18 +42,18 @@ def split_data(storage: ArrayStorage, test_size: float = 0.2, random_state: int 
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=test_size, random_state=random_state
     )
-    
+
     # Wrap in ArrayStorage as required by simstack-models
-    X_train_storage = ArrayStorage(name="X_train")
-    X_train_storage.set_array(X_train)
-    X_test_storage = ArrayStorage(name="X_test")
-    X_test_storage.set_array(X_test)
-    y_train_storage = ArrayStorage(name="y_train")
-    y_train_storage.set_array(y_train)
-    y_test_storage = ArrayStorage(name="y_test")
-    y_test_storage.set_array(y_test)
-    
-    return X_train_storage, X_test_storage, y_train_storage, y_test_storage
+    node_runner.X_train_storage = ArrayStorage(name="X_train")
+    node_runner.X_train_storage.set_array(X_train)
+    node_runner.X_test_storage = ArrayStorage(name="X_test")
+    node_runner.X_test_storage.set_array(X_test)
+    node_runner.y_train_storage = ArrayStorage(name="y_train")
+    node_runner.y_train_storage.set_array(y_train)
+    node_runner.y_test_storage = ArrayStorage(name="y_test")
+    node_runner.y_test_storage.set_array(y_test)
+
+    return node_runner.succeed()
 
 @node
 def train_model(X_train: ArrayStorage, y_train: ArrayStorage):
