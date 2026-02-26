@@ -563,8 +563,8 @@ wheels = [
 
 [[package]]
 name = "simstack"
-version = "0.3.0.dev176"
-source = { git = "https://github.com/simstack/simstack.git?rev=main#e8bed7ee66074f81f4bf1532fc0de9ebdd411e65" }
+version = "0.3.0.dev205"
+source = { git = "https://github.com/simstack/simstack.git?rev=testing#164f25f8bb01aac6099d3961e5011df908c80c9d" }
 dependencies = [
     { name = "cloudpickle" },
     { name = "coolname" },
@@ -602,7 +602,7 @@ requires-dist = [
     { name = "pytest", specifier = ">=9.0.1" },
     { name = "pytest-asyncio", specifier = ">=1.3.0" },
     { name = "scikit-learn" },
-    { name = "simstack", git = "https://github.com/simstack/simstack.git?rev=main" },
+    { name = "simstack", git = "https://github.com/simstack/simstack.git?rev=testing" },
 ]
 
 [package.metadata.requires-dev]

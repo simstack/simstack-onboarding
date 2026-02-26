@@ -12,7 +12,7 @@ dependencies = [
     "pip==25.2",
     "pytest>=9.0.1",
     "pytest-asyncio>=1.3.0",
-    "simstack @ git+https://github.com/simstack/simstack.git@main",
+    "simstack @ git+https://github.com/simstack/simstack.git@testing",
     "scikit-learn",
     "pandas-stubs~=3.0.0",
 ]
