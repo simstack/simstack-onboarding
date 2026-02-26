@@ -74,7 +74,7 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-5. open a terminal and set  export PYTHONPATH=`pwd` run this code in a terminal as:  uv run python public/first_steps/complex_workflow.py. You should get an error like this: 
+5. open a terminal and set  export PYTHONPATH=`pwd` run this code in a terminal as:  uv run python public/first_steps/complex_operation.py. You should get an error like this: 
 
 
 ```aiignore
