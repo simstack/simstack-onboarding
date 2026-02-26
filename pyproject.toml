@@ -18,8 +18,8 @@ dependencies = [
 ]
 
 [project.entry-points."simstack.modules"]
-example_modules = "examples"
-application_modules = "applications"
+example_modules = "public"
+application_modules = "private"
 
 [build-system]
 requires = ["hatchling"]
