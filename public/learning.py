@@ -1,6 +1,7 @@
 import asyncio
 
 import numpy as np
+from docutils.nodes import field_name
 from pandas.core.interchange.dataframe_protocol import DataFrame
 from simstack.core.context import context
 from simstack.models import StringData
@@ -11,12 +12,19 @@ from simstack.core.node import node
 from simstack.models.array_storage import ArrayStorage
 from simstack.models.artifact_models import ArtifactModel
 
+from public.models.df_model import DataFrameModel
+
+
 @node
 async def load_data(name: StringData,**kwargs) -> DataFrame:
     """
     Load data from an ArrayStorage object.
     """
-    storage = await context.db.engine.find_one(DataFrame, {"field_name": name.value})
+    node_runner = kwargs.get("node_runner")
+    node_runner.info(f"loading data from {name.value}")
+    storage = await context.db.engine.find_one(DataFrameModel, {"field_name": name.value})
+    if storage is None:
+        raise ValueError(f"Data with field_name {name.value} not found in database.")
     return storage
 
 @node
@@ -81,7 +89,7 @@ def log_metrics(metrics: ArtifactModel):
 
 async def main():
     await context.initialize()
-    result = await load_data("housing")
+    result = await load_data(StringData(field_name="input", value="housing_dataset"))
 
 if __name__ == "__main__":
     asyncio.run(main())
