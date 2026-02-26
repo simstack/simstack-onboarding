@@ -18,6 +18,7 @@ async def main():
     df['target'] = y
 
     df_model = DataFrameModel(field_name="housing_dataset")
+    df_model.store_df(df)
     await context.db.save(df_model)
 
 if __name__ == "__main__":
