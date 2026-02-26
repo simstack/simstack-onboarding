@@ -1,4 +1,9 @@
+import asyncio
+
 import numpy as np
+from pandas.core.interchange.dataframe_protocol import DataFrame
+from simstack.core.context import context
+from simstack.models import StringData
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, r2_score
@@ -7,10 +12,11 @@ from simstack.models.array_storage import ArrayStorage
 from simstack.models.artifact_models import ArtifactModel
 
 @node
-def load_data(storage: ArrayStorage) -> ArrayStorage:
+async def load_data(name: StringData,**kwargs) -> DataFrame:
     """
     Load data from an ArrayStorage object.
     """
+    storage = await context.db.engine.find_one(DataFrame, {"field_name": name.value})
     return storage
 
 @node
@@ -72,3 +78,10 @@ def log_metrics(metrics: ArtifactModel):
     for metric, value in metrics.data.items():
         print(f"  {metric}: {value:.4f}")
     return metrics
+
+async def main():
+    await context.initialize()
+    result = await load_data("housing")
+
+if __name__ == "__main__":
+    asyncio.run(main())
