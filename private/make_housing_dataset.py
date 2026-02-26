@@ -2,17 +2,22 @@ import asyncio
 import pandas as pd
 from simstack.core.context import context
 from simstack.core.node import node
+from simstack.models import IntData
 from sklearn.datasets import fetch_california_housing
 
 from public.models.df_model import DataFrameModel
 
 @node
-async def main():
+async def make_housing_dataset(number: IntData,**kwargs):
     await context.initialize()
-
+    max_number = number.value
+    if max_number > 100:
+        max_number = 100
+    if max_number < 1:
+        max_number = 1
     housing = fetch_california_housing()
-    X = housing.data[:30]
-    y = housing.target[:30]
+    X = housing.data[:max_number]
+    y = housing.target[:max_number]
 
     df = pd.DataFrame(X, columns=housing.feature_names)
     df['target'] = y
