@@ -24,6 +24,7 @@ async def make_housing_dataset(number: IntData,**kwargs):
     df_model = DataFrameModel(field_name="housing_dataset")
     df_model.store_df(df)
     await context.db.save(df_model)
+    return True
 
 if __name__ == "__main__":
     asyncio.run(make_housing_dataset())
