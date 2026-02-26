@@ -15,7 +15,7 @@ Some jupyter instance should pop up
 1. In the jupyter instance go to "+" and open a terminal
 2. Install uv https://docs.astral.sh/uv/getting-started/installation/#installation-methods
 3. Add it to your shell: source $HOME/.local/bin/env 
-4. Clone this repo: git clone https://github.com/simstack/simstack-onboarding.git
+4. Clone/fork this repo: git clone https://github.com/simstack/simstack-onboarding.git (fork if you want to commit changes)
 5. In simstack-onboarding run uv sync --locked 
 6. In the home directory make a directory simstack: mkdir simstack
 7. go to simstack-onboarding 

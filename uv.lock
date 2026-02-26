@@ -351,8 +351,8 @@ wheels = [
 
 [[package]]
 name = "simstack"
-version = "0.3.0.dev212"
-source = { git = "https://github.com/simstack/simstack.git?rev=testing#4903a3a7e77ecac3d275c27d12c2d6c5ed24fc26" }
+version = "0.3.0.dev213"
+source = { git = "https://github.com/simstack/simstack.git?rev=testing#603f690bc6ec614cb71bc7667f8bdde72ecde516" }
 dependencies = [
     { name = "cloudpickle" },
     { name = "coolname" },
