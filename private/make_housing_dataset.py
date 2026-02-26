@@ -9,8 +9,6 @@ from public.models.df_model import DataFrameModel
 
 @node
 async def make_housing_dataset(number: IntData,**kwargs):
-    if not context.initialized:
-        await context.initialize()
     max_number = number.value
     if max_number > 100:
         max_number = 100
