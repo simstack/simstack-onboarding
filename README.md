@@ -22,6 +22,7 @@ Some jupyter instance should pop up
 8. create a simstack.toml file (on the left in the jupyter instance, navigate to simstack-onboarding, click on "new file" in the file folder):
 9. uv run create_model_table --dir private --dir public
 10. uv run create_node_table --dir private --dir public_
+11. uv run simstack_runner --resource local --no-detach --no-pull
 
 ```toml
 [parameters]
