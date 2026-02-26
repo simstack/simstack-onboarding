@@ -1,12 +1,12 @@
 import asyncio
-
 import pandas as pd
 from simstack.core.context import context
+from simstack.core.node import node
 from sklearn.datasets import fetch_california_housing
 
 from public.models.df_model import DataFrameModel
 
-
+@node
 async def main():
     await context.initialize()
 
