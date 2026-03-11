@@ -1,7 +1,6 @@
 import numpy as np
-from simstack.models.array_storage import ArrayStorage
 from public.models.df_model import DataFrameModel
-from public.regression import load_data, split_data, train_model, evaluate_model, log_metrics
+from old.regression import split_data, train_model, evaluate_model, log_metrics
 
 def run_regression_workflow():
     # 1. Setup data in DataFrameModel

@@ -8,7 +8,7 @@ It is not a calibrated constitutive law and should not be used for design.
 
 Outputs:
 - synthetic_steel_stress_strain_curves.csv
-- synthetic_steel_curve_summary.csv
+- steel_curve_summary1.csv
 
 Usage:
     python generate_synthetic_steel_curves.py
@@ -209,8 +209,8 @@ def save_outputs(
 ) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    curves_path = output_dir / "synthetic_steel_stress_strain_curves.npy"
-    summary_path = output_dir / "synthetic_steel_curve_summary.csv"
+    curves_path = output_dir / "steel_stress_strain_curves2.npy"
+    summary_path = output_dir / "steel_curve_summary2.csv"
 
     np.save(curves_path, curves_array)
     summary_df.to_csv(summary_path, index=False)
@@ -219,7 +219,7 @@ def save_outputs(
     print(f"Saved summary to: {summary_path}")
 
     if compositions_array is not None:
-        comp_path = output_dir / "random_steel_compositions.npy"
+        comp_path = output_dir / "random_steel_compositions2.npy"
         np.save(comp_path, compositions_array)
         print(f"Saved compositions array to: {comp_path}")
 
@@ -286,7 +286,16 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
 
-    strain = np.linspace(0.0, args.max_strain, args.n_points)
+
+    # Create non-uniform strain array: first 5% of range is 10x denser
+    boundary_strain = 0.05 * args.max_strain
+    # Allocate ~65% of points to first 5% of range (10/(10+1) ≈ 0.909, but adjust for practical distribution)
+    n_dense = int(args.n_points * 0.65)
+    n_sparse = args.n_points - n_dense
+
+    strain_dense = np.linspace(0.0, boundary_strain, n_dense, endpoint=False)
+    strain_sparse = np.linspace(boundary_strain, args.max_strain, n_sparse)
+    strain = np.concatenate([strain_dense, strain_sparse])
 
     cases = make_default_cases()
     compositions_array = None

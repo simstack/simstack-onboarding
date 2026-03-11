@@ -1,10 +1,10 @@
-
-
-
 import numpy as np
-from typing import Dict, Any
+from simstack.core.context import context
 
-def extract_stress_strain_features(stress: np.ndarray, strain: np.ndarray) -> Dict[str, Any]:
+from models.stress_strain_model import StrainStressModel
+
+
+async def extract_stress_strain_features(stress: np.ndarray, strain: np.ndarray, curve_number:int) -> StrainStressModel:
     """
     Extract key features from a stress-strain curve.
     
@@ -125,9 +125,20 @@ def extract_stress_strain_features(stress: np.ndarray, strain: np.ndarray) -> Di
         "strain": float(strain[-1])
     }
 
-    return {
+    analysis_result = {
         "linear_region": linear_region,
         "yield_strength": yield_strength,
         "ultimate_strength": ultimate_strength,
         "fracture": fracture
     }
+
+    # Pack analysis results into StrainStressModel
+    strain_stress_model = StrainStressModel(
+        curve_index=curve_number,
+        linear_region=analysis_result["linear_region"],
+        yield_strength=analysis_result.get("yield_strength"),
+        ultimate_strength=analysis_result["ultimate_strength"],
+        fracture=analysis_result["fracture"]
+    )
+    await context.db.save(strain_stress_model)
+    return strain_stress_model
