@@ -1,5 +1,6 @@
 import asyncio
 import pandas as pd
+from docutils.nodes import field_name
 from simstack.core.context import context
 from simstack.core.node import node
 from simstack.models import Parameters, StringData, IntData
@@ -9,19 +10,10 @@ from simstack.models.pandas_model import PandasModel
 from public.dataset_ops.extract_stress_strain_features import extract_stress_strain_features
 
 
-async def _process_batch_internal(dataset_name: StringData, batch_start: IntData, batch_end: IntData, **kwargs):
+async def _process_batch_internal(curves_dataset: ArrayStorage, parameter_dataset: PandasModel, batch_start: IntData, batch_end: IntData, **kwargs):
     node_runner = kwargs.get("node_runner")
     node_runner.info(f"Processing batch {batch_start.value} to {batch_end.value}")
-    np_array_input = await context.db.engine.find_one(ArrayStorage,
-                                                      {"name": dataset_name.value})
-    if np_array_input is None:
-        raise ValueError("ArrayStorage not found")
-    stress_strain_curves = np_array_input.get_array()
-
-    parameter_dataset = await context.db.engine.find_one(PandasModel,
-                                                      {"field_name": "synthetic_steel_curve_summary-20260308152912"})
-    if not parameter_dataset:
-        raise ValueError("PandasModel not found")
+    stress_strain_curves = curves_dataset.get_array()
 
     df = parameter_dataset.table
     strain_data = stress_strain_curves[0, :]
@@ -54,25 +46,19 @@ async def _process_batch_internal(dataset_name: StringData, batch_start: IntData
     
     # Pack result in a PandasModel to be returned from node
     batch_df = pd.DataFrame(results)
-    batch_result_model = PandasModel(field_name=f"{dataset_name.value}_batch_{batch_start.value}")
+    batch_result_model = PandasModel(field_name=f"{curves_dataset.name}_batch_{batch_start.value}")
     batch_result_model.table = batch_df
     return batch_result_model
 
 
 @node
-async def process_batch(dataset_name: StringData, batch_start: IntData, batch_end: IntData, **kwargs):
-    return await _process_batch_internal(dataset_name, batch_start, batch_end, **kwargs)
+async def process_batch(curces_dataset: ArrayStorage, parameters_dataset: PandasModel, batch_start: IntData, batch_end: IntData, **kwargs):
+    return await _process_batch_internal(curces_dataset, parameters_dataset, batch_start, batch_end, **kwargs)
 
 
 @node(parameters=Parameters(force_rerun=True))
-async def make_training_data(dataset_name_model: StringData, **kwargs):
+async def make_training_data(curves_dataset: ArrayStorage, parameter_dataset: PandasModel, **kwargs):
     node_runner = kwargs.get("node_runner")
-    dataset_name = dataset_name_model.value
-    
-    parameter_dataset = await context.db.engine.find_one(PandasModel,
-                                                      {"field_name": "synthetic_steel_curve_summary-20260308152912"})
-    if not parameter_dataset:
-        raise ValueError("PandasModel not found")
 
     df = parameter_dataset.table
     total_records = len(df)
@@ -84,7 +70,8 @@ async def make_training_data(dataset_name_model: StringData, **kwargs):
     async def run_batch_with_semaphore(start, end):
         async with semaphore:
             # Call the internal function directly to avoid @node scheduling issues in standalone/test
-            return await process_batch(dataset_name_model, IntData(value=start), IntData(value=end), **kwargs)
+            return await process_batch(curves_dataset, parameter_dataset, IntData(field_name="batch_start", value=start),
+                                       IntData(field_name="batch_end", value=end), **kwargs)
 
     tasks = []
     for i in range(0, total_records, batch_size):
@@ -101,7 +88,7 @@ async def make_training_data(dataset_name_model: StringData, **kwargs):
         
     training_df = pd.concat(all_dfs, ignore_index=True)
 
-    training_data_model = PandasModel(field_name=dataset_name + "training_data")
+    training_data_model = PandasModel(field_name=dataset.field_name + "training_data")
     training_data_model.table = training_df
 
     await context.db.save(training_data_model)

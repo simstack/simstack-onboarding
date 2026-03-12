@@ -20,11 +20,12 @@ async def extract_stress_strain_features(stress: np.ndarray, strain: np.ndarray,
         1D array of engineering stress values.
     strain : np.ndarray
         1D array of engineering strain values.
-        
+    curve_number : int
     Returns
     -------
     dict
         Dictionary containing the extracted features.
+
     """
     # Remove NaNs if any (common at the end of data if fixed-size arrays were used)
     mask = ~np.isnan(stress) & ~np.isnan(strain)

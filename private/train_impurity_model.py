@@ -9,8 +9,10 @@ from simstack.models import Parameters
 
 from public.machine_learning.ml_training_helper import RegressionAnalysis
 
+
 @node(parameters=Parameters(force_rerun=True))
-async def train_impurity_regressor(dataset: PandasModel, **kwargs):
+async def train_impurity_regressor_full(dataset: PandasModel, element_selector: ElementSelector,
+                                   use_scaling: BooleanData, use_engineered_features: BooleanData, **kwargs):
     """
     Load the training_data dataset and train a RandomForestRegressor 
     to predict impurity concentrations (C, Mn, P, S) based on extracted features.
@@ -19,7 +21,7 @@ async def train_impurity_regressor(dataset: PandasModel, **kwargs):
     
     # 3. Setup Regression Analysis
     # kwargs can include use_scaling and use_engineered_features flags
-    analysis = RegressionAnalysis(dataset, **kwargs)
+    analysis = RegressionAnalysis(dataset, element_selector, use_scaling_input=use_scaling, use_engineered_features_input=use_engineered_features, **kwargs)
     await analysis.make_model_data()
 
     # 4. Train Model
