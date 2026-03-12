@@ -7,6 +7,7 @@ from simstack.models import Parameters
 from simstack.models.charts_artifact import (
     ChartArtifactModel,
     AGBarSeriesConfig,
+    AGRangeBarSeriesConfig,
     AGChartAxisConfig,
     AGChartTitleConfig
 )
@@ -92,6 +93,55 @@ async def visualize_strain_vs_concentration(dataset: PandasModel, **kwargs):
     return await _visualize_strain_vs_concentration_internal(dataset, **kwargs)
 
 
+async def _visualize_impurity_ranges_internal(dataset: PandasModel, **kwargs):
+    node_runner = kwargs.get("node_runner")
+    task_id = kwargs.get("task_id")
+
+    df = dataset.table
+    impurity_cols = ["C_wt_percent", "Mn_wt_percent", "P_wt_percent", "S_wt_percent"]
+
+    min_values = df[impurity_cols].min()
+    max_values = df[impurity_cols].max()
+
+    chart_data = []
+    for col in impurity_cols:
+        chart_data.append({
+            "impurity": col.split("_")[0],
+            "min_value": float(min_values[col]),
+            "max_value": float(max_values[col])
+        })
+
+    range_series = [
+        AGRangeBarSeriesConfig(
+            type="range-bar",
+            xKey="impurity",
+            yLowKey="min_value",
+            yHighKey="max_value",
+            title="Impurity Concentration Range",
+            data=chart_data
+        )
+    ]
+
+    axes = [
+        AGChartAxisConfig(type="category", position="bottom", title="Impurity"),
+        AGChartAxisConfig(type="number", position="left", title="Concentration (wt%)")
+    ]
+
+    range_chart = ChartArtifactModel(
+        title=AGChartTitleConfig(text="Impurity Concentration Min/Max Ranges"),
+        series=range_series,
+        axes=axes,
+        data=chart_data
+    )
+
+    if task_id:
+        range_chart.parent_id = ObjectId(task_id)
+    await context.db.save(range_chart)
+    node_runner.info("Saved impurity min/max range chart")
+
+    return range_chart
+
+
 async def _visualize_impurity_maxima_internal(dataset: PandasModel, **kwargs):
     node_runner = kwargs.get("node_runner")
     task_id = kwargs.get("task_id")
@@ -154,9 +204,14 @@ async def _visualize_impurity_maxima_internal(dataset: PandasModel, **kwargs):
 
 @node(parameters=Parameters(force_rerun=True))
 async def visualize_impurity_maxima(dataset: PandasModel, **kwargs):
-    chart = await _visualize_impurity_maxima_internal(dataset, **kwargs)
-    kwargs.get("node_runner").chart = chart
-    return kwargs.get("node_runner").succeed()
+    max_chart = await _visualize_impurity_maxima_internal(dataset, **kwargs)
+
+    # We can remove old max_chart and set this new range_chart as node_runner.chart if needed
+    range_chart = await _visualize_impurity_ranges_internal(dataset, **kwargs)
+
+    node_runner = kwargs.get("node_runner")
+    node_runner.chart = max_chart
+    return node_runner.succeed()
 
 
 async def main():
