@@ -40,6 +40,8 @@
 - use the chart inspection to check that the right data is extracted
 - explain the training data approach, go over the code in public/make_training_data.py
 - run public/make_training_data.py, monitor the progress while running (this is hundres od jobs)
+
+### 3.3 Train the ML model
 - motivate and explain the ML workflow public/ml_training_helper.py
 - run public/train_impurity_model, note the bad correlation for S and P
 - experiment: train only one species ? (models: ElementSelector)
