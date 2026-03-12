@@ -2,19 +2,23 @@ import pickle
 from pathlib import Path
 from typing import Any
 
-import pandas as pd
 import numpy as np
-import os
 from odmantic import ObjectId
-from simstack.models import StringData
+from simstack.models import StringData, BooleanData
 from sklearn.model_selection import train_test_split
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor, ExtraTreesRegressor
+from sklearn.linear_model import LinearRegression
+from sklearn.multioutput import MultiOutputRegressor
+from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_squared_error, r2_score
 from simstack.core.context import context
 from simstack.models.pandas_model import PandasModel
+
+from models.element_selector import ElementSelector
 from models.regression_result import RegressionResult
 from simstack.models.charts_artifact import create_simple_scatter_chart
 from simstack.core.node import node
+from simstack.models import Parameters
 
 async def save_scatter_plot(y_true, y_pred, title, x_label, y_label, task_id, **kwargs):
     """
@@ -52,11 +56,26 @@ async def save_scatter_plot(y_true, y_pred, title, x_label, y_label, task_id, **
 
 
 class RegressionAnalysis:
-    def __init__(self, dataset_name: str, node_runner: Any, task_id: str | None = None, targets: list[str] | None = None):
-        self.dataset_name = dataset_name
-        self.node_runner = node_runner
-        self.task_id = task_id
-        self.targets = targets or ["C_wt_percent", "Mn_wt_percent", "P_wt_percent", "S_wt_percent"]
+    def __init__(self, dataset: PandasModel | str, target_selector: ElementSelector | list[str],
+                 use_scaling_input: BooleanData,
+                 use_engineered_features_input: BooleanData, **kwargs):
+        self.node_runner = kwargs.get("node_runner")
+        self.task_id = kwargs.get("task_id")
+        self.dataset = dataset
+        self.targets = []
+        if isinstance(target_selector, list):
+            self.targets = target_selector
+        else:
+            if target_selector.use_C:
+                self.targets.append("C_wt_percent")
+            if target_selector.use_Mn:
+                self.targets.append("Mn_wt_percent")
+            if target_selector.use_P:
+                self.targets.append("P_wt_percent")
+            if target_selector.use_S:
+                self.targets.append("S_wt_percent")
+        if len(self.targets) == 0:
+            raise ValueError("At least one target must be selected.")
         self.features = [
             "youngs_modulus_MPa",
             "yield_strength_MPa",
@@ -70,37 +89,75 @@ class RegressionAnalysis:
         self.y_test = None
         self.model = None
 
+        # Onboarding options
+        self.use_scaling = use_scaling_input.value
+        self.use_engineered_features = use_engineered_features_input.value
+
     async def make_model_data(self):
         # 1. Load data
-        dataset = await context.db.engine.find_one(PandasModel, {"field_name": {"$regex": self.dataset_name}})
-        if dataset is None:
-            raise ValueError(f"Dataset matching '{self.dataset_name}' not found.")
-
-        df = dataset.table
+        if isinstance(self.dataset, str):
+            dataset_model = await context.db.engine.find_one(PandasModel, {"field_name": {"$regex": self.dataset}})
+            if dataset_model is None:
+                raise ValueError(f"Dataset matching '{self.dataset}' not found.")
+            df = dataset_model.table
+        else:
+            df = self.dataset.table
 
         # 2. Define Features and Targets
         # Drop rows with NaN if any (though synthetic data should be clean)
         df_clean = df[self.features + self.targets].dropna()
 
-        X = df_clean[self.features]
+        X_cols = self.features.copy()
+        if self.use_engineered_features:
+            # Add engineering features
+            # Since yield and UTS depend on sqrt(C), maybe the model needs more help
+            # But for P and S, the relationship is linear with strains.
+            # Let's check if the ratio of strengths or strains helps.
+            df_clean["strength_ratio"] = df_clean["ultimate_strength_MPa"] / df_clean["yield_strength_MPa"]
+            df_clean["strain_diff"] = df_clean["fracture_strain"] - (df_clean["ultimate_strength_MPa"] / df_clean["youngs_modulus_MPa"])
+            X_cols += ["strength_ratio", "strain_diff"]
+        
+        X = df_clean[X_cols]
         y = df_clean[self.targets]
 
         # 3. Split data
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-    async def model_analysis(self, model: RandomForestRegressor) -> RegressionResult:
+    async def model_analysis(self, model: Any) -> RegressionResult:
         self.model = model
-        self.node_runner.info(f"Training RandomForestRegressor on {len(self.X_train)} samples for targets: {self.targets}...")
-        self.model.fit(self.X_train, self.y_train)
+        self.node_runner.info(f"Training {type(model).__name__} on {len(self.X_train)} samples for targets: {self.targets}...")
+        
+        if self.use_scaling:
+            # Scaling targets to ensure equal weight in MultiOutput models
+            self.target_scaler = StandardScaler()
+            y_train_fit = self.target_scaler.fit_transform(self.y_train)
+        else:
+            y_train_fit = self.y_train
+
+        # Reshape to 1D if single target to avoid sklearn warning
+        if len(self.targets) == 1:
+            if hasattr(y_train_fit, "values"):
+                y_train_fit = y_train_fit.values.ravel()
+            else:
+                y_train_fit = np.array(y_train_fit).ravel()
+
+        self.model.fit(self.X_train, y_train_fit)
 
         # 5. Evaluate and Plot
-        y_pred_train = self.model.predict(self.X_train)
-        y_pred_test = self.model.predict(self.X_test)
-
-        # Handle 1D predictions if only one target
+        y_pred_train_raw = self.model.predict(self.X_train)
+        y_pred_test_raw = self.model.predict(self.X_test)
+        
+        # Reshape if necessary
         if len(self.targets) == 1:
-            y_pred_train = y_pred_train.reshape(-1, 1)
-            y_pred_test = y_pred_test.reshape(-1, 1)
+            y_pred_train_raw = y_pred_train_raw.reshape(-1, 1)
+            y_pred_test_raw = y_pred_test_raw.reshape(-1, 1)
+
+        if self.use_scaling:
+            y_pred_train = self.target_scaler.inverse_transform(y_pred_train_raw)
+            y_pred_test = self.target_scaler.inverse_transform(y_pred_test_raw)
+        else:
+            y_pred_train = y_pred_train_raw
+            y_pred_test = y_pred_test_raw
 
         metrics = {}
 
@@ -157,22 +214,25 @@ class RegressionAnalysis:
         return results
 
 
-@node
-async def train_impurity_regressor(dataset_name_model: StringData, **kwargs):
+@node(parameters=Parameters(force_rerun=True))
+async def train_impurity_regressor(dataset: PandasModel, element_selector: ElementSelector,
+                                   use_scaling: BooleanData, use_engineered_features: BooleanData, **kwargs):
     """
     Load the training_data dataset and train a RandomForestRegressor 
     to predict impurity concentrations (C, Mn, P, S) based on extracted features.
     """
     node_runner = kwargs.get("node_runner")
-    task_id = kwargs.get("task_id")
-    dataset_name = dataset_name_model.value
-
-    analysis = RegressionAnalysis(dataset_name, node_runner, task_id)
+    
+    # 3. Setup Regression Analysis
+    # kwargs can include use_scaling and use_engineered_features flags
+    analysis = RegressionAnalysis(dataset, element_selector, use_scaling_input=use_scaling, use_engineered_features_input=use_engineered_features, **kwargs)
     await analysis.make_model_data()
 
     # 4. Train Model
-    # RandomForestRegressor supports multi-output out of the box.
-    model = RandomForestRegressor(n_estimators=100, random_state=42)
+    # Using RandomForestRegressor for onboarding simplicity.
+    # It handles multi-output targets automatically.
+    model = RandomForestRegressor(n_estimators=100, max_depth=10, random_state=42)
+        
     results = await analysis.model_analysis(model)
 
     # Return metrics dictionary instead of RegressionResult model to avoid Simstack result processing error
@@ -180,51 +240,35 @@ async def train_impurity_regressor(dataset_name_model: StringData, **kwargs):
     return node_runner.succeed()
 
 
-@node
-async def train_sulfur_regressor(dataset_name_model: StringData, **kwargs):
-    """
-    Load the training_data dataset and train a RandomForestRegressor 
-    to predict ONLY Sulfur concentration based on extracted features.
-    """
-    node_runner = kwargs.get("node_runner")
-    task_id = kwargs.get("task_id")
-    dataset_name = dataset_name_model.value
+async def main():
+    await context.initialize()
+    from models.element_selector import ElementSelector
+    
+    # Mock NodeRunner
+    class MockNodeRunner:
+        def info(self, msg): print(f"INFO: {msg}")
+        def succeed(self): print("SUCCESS")
+        def fail(self, msg): print(f"FAIL: {msg}")
 
-    analysis = RegressionAnalysis(dataset_name, node_runner, task_id, targets=["S_wt_percent"])
-    await analysis.make_model_data()
+    # Load dataset
+    dataset = await context.db.engine.find_one(PandasModel, {"field_name": {"$regex": "training_data"}})
+    if not dataset:
+        print("Dataset not found. Please run make_training_data first.")
+        return
 
-    # 4. Train Model
-    model = RandomForestRegressor(n_estimators=100, random_state=42)
-    results = await analysis.model_analysis(model)
+    selector = ElementSelector(use_C=True, use_Mn=True, use_P=True, use_S=True)
+    
+    print("\n--- Training Single Target Model (S_wt_percent) ---")
+    single_selector = ElementSelector(use_C=False, use_Mn=False, use_P=False, use_S=True)
+    await train_impurity_regressor(dataset, single_selector, node_runner=MockNodeRunner(), use_scaling=BooleanData(value=False), use_engineered_features=BooleanData(value=False))
 
-    # Return metrics dictionary instead of RegressionResult model to avoid Simstack result processing error
-    node_runner.result = results
-    return node_runner.succeed()
+    print("\n--- Training Simplified Model (No Scaling, No Engineering) ---")
+    await train_impurity_regressor(dataset, selector, node_runner=MockNodeRunner(), use_scaling=BooleanData(value=False), use_engineered_features=BooleanData(value=False))
 
+    print("\n--- Training Advanced Model (Scaling + Engineering) ---")
+    await train_impurity_regressor(dataset, selector, node_runner=MockNodeRunner(), use_scaling=BooleanData(value=True), use_engineered_features=BooleanData(value=True))
 
 if __name__ == "__main__":
     import asyncio
-    async def run_standalone():
-        await context.initialize()
-        # Mock node_runner for local execution
-        class MockNodeRunner:
-            def info(self, msg): print(f"INFO: {msg}")
-            def succeed(self): return "Success"
-            result = None
-        
-        # Bypass @node decorator for local verification due to TaskStatus.FAILED persistence in DB
-        task_id = str(ObjectId())
-        
-        print("\n--- Training All Impurities ---")
-        analysis_all = RegressionAnalysis("training_data", MockNodeRunner(), task_id)
-        await analysis_all.make_model_data()
-        model_all = RandomForestRegressor(n_estimators=100, random_state=42)
-        await analysis_all.model_analysis(model_all)
-        
-        print("\n--- Training Sulfur Only ---")
-        analysis_s = RegressionAnalysis("training_data", MockNodeRunner(), task_id, targets=["S_wt_percent"])
-        await analysis_s.make_model_data()
-        model_s = RandomForestRegressor(n_estimators=100, random_state=42)
-        await analysis_s.model_analysis(model_s)
-        
-    asyncio.run(run_standalone())
+    asyncio.run(main())
+

@@ -10,23 +10,100 @@ from simstack.models.charts_artifact import (
     AGChartAxisConfig,
     AGChartTitleConfig
 )
+from simstack.models.table_artifact import TableArtifactModel, AGGridColumnDef
 from simstack.models.pandas_model import PandasModel
 
-from public.machine_learning.make_training_data import make_training_data
+from simstack.models.charts_artifact import create_simple_scatter_chart
+
+
+async def _visualize_strain_vs_concentration_internal(dataset: PandasModel, **kwargs):
+    node_runner = kwargs.get("node_runner")
+    task_id = kwargs.get("task_id")
+    
+    df = dataset.table
+    impurity_cols = ["C_wt_percent", "Mn_wt_percent", "P_wt_percent", "S_wt_percent"]
+    
+    # We want to analyze strains: fracture_strain and uniform_strain
+    strain_cols = ["fracture_strain"]
+    if "uniform_strain" in df.columns:
+        strain_cols.append("uniform_strain")
+    
+    node_runner.info(f"Visualizing relationship between {impurity_cols} and {strain_cols}")
+
+    charts = []
+    for strain in strain_cols:
+        for impurity in impurity_cols:
+            plot_data = []
+            for _, row in df.iterrows():
+                plot_data.append({
+                    impurity: float(row[impurity]),
+                    strain: float(row[strain])
+                })
+            
+            title = f"{strain} vs {impurity}"
+            chart = create_simple_scatter_chart(
+                data=plot_data,
+                x_key=impurity,
+                y_key=strain,
+                title=title,
+                parent_id=ObjectId(task_id) if task_id else None
+            )
+            await context.db.save(chart)
+            charts.append(chart)
+            node_runner.info(f"Saved scatter chart: {title}")
+
+    # Create correlation matrix as a table
+    corr = df[impurity_cols + strain_cols].corr()
+    node_runner.info("Correlation Matrix:\n" + str(corr))
+
+    # Create TableArtifactModel for correlation matrix
+    column_defs = [AGGridColumnDef(field="feature", headerName="Feature")]
+    for col in corr.columns:
+        column_defs.append(AGGridColumnDef(field=col, headerName=col))
+
+    row_data = []
+    for row_name in corr.index:
+        row_dict = {"feature": row_name}
+        for col in corr.columns:
+            row_dict[col] = float(corr.loc[row_name, col])
+        row_data.append(row_dict)
+
+    # Use a dummy ObjectId if task_id is None to avoid pydantic validation error in TableArtifactModel
+    # parent_id in TableArtifactModel is not Optional in this version of simstack
+    effective_parent_id = ObjectId(task_id) if task_id else ObjectId()
+
+    corr_table = TableArtifactModel(
+        columns_defs=column_defs,
+        row_data=row_data,
+        parent_id=effective_parent_id
+    )
+
+    await context.db.save(corr_table)
+    charts.append(corr_table)
+    node_runner.info("Saved correlation matrix table")
+
+    if hasattr(node_runner, 'result'):
+        node_runner.result = {"charts_count": len(charts), "correlation_matrix": corr.to_dict()}
+    return charts
 
 
 @node(parameters=Parameters(force_rerun=True))
-async def visualize_impurity_maxima(**kwargs):
+async def visualize_strain_vs_concentration(dataset: PandasModel, **kwargs):
+    return await _visualize_strain_vs_concentration_internal(dataset, **kwargs)
+
+
+async def _visualize_impurity_maxima_internal(dataset: PandasModel, **kwargs):
     node_runner = kwargs.get("node_runner")
+    task_id = kwargs.get("task_id")
     
-    # We can use the training_data if it exists, or the raw summary
-    dataset = await context.db.engine.find_one(PandasModel, {"field_name": "training_data"})
-    if not dataset:
-        node_runner.info("training_data not found, trying raw summary")
-        dataset = await context.db.engine.find_one(PandasModel, {"field_name": "synthetic_steel_curve_summary-20260308152912"})
-    
-    if not dataset:
-        raise ValueError("No suitable dataset found for visualization")
+    # # We can use the training_data if it exists, or the raw summary
+    # dataset = await context.db.engine.find_one(PandasModel, {"field_name": "training_data"})
+    # if not dataset:
+    #     node_runner.info("training_data not found, trying raw summary")
+    #     dataset = await context.db.engine.find_one(PandasModel, {"field_name": {"$regex": "synthetic_steel_curve_summary"}})
+    #
+    # if not dataset:
+    #     raise ValueError("No suitable dataset found for visualization")
     
     df = dataset.table
     impurity_cols = ["C_wt_percent", "Mn_wt_percent", "P_wt_percent", "S_wt_percent"]
@@ -67,19 +144,50 @@ async def visualize_impurity_maxima(**kwargs):
         data=chart_data
     )
     
-    chart.parent_id = ObjectId(kwargs["task_id"])
+    if task_id:
+        chart.parent_id = ObjectId(task_id)
     await context.db.save(chart)
     node_runner.info(f"Saved impurity maxima bar chart")
     
-    node_runner.chart = chart
-    return node_runner.succeed()
+    return chart
+
+
+@node(parameters=Parameters(force_rerun=True))
+async def visualize_impurity_maxima(dataset: PandasModel, **kwargs):
+    chart = await _visualize_impurity_maxima_internal(dataset, **kwargs)
+    kwargs.get("node_runner").chart = chart
+    return kwargs.get("node_runner").succeed()
 
 
 async def main():
     await context.initialize()
-    # await analyze_curve(IntData(field_name="curve_number", value=12))
-    await make_training_data()
-    await visualize_impurity_maxima()
+    
+    # Try to find the training data
+    dataset = await context.db.engine.find_one(PandasModel, {"field_name": {"$regex": "training_data"}})
+    if not dataset:
+        print("INFO: training_data not found, trying raw summary")
+        dataset = await context.db.engine.find_one(PandasModel, {"field_name": {"$regex": "synthetic_steel_curve_summary"}})
+    
+    if not dataset:
+        raise ValueError("No suitable dataset found for visualization")
+
+    # Mock NodeRunner for manual execution
+    class MockNodeRunner:
+        def __init__(self):
+            self.result = None
+            self.chart = None
+        def info(self, msg): print(f"INFO: {msg}")
+        def succeed(self): print("SUCCESS")
+        def fail(self, msg): print(f"FAIL: {msg}")
+
+    runner = MockNodeRunner()
+    kwargs = {"node_runner": runner, "task_id": None}
+    
+    print("\n--- Visualizing Strain vs Concentration ---")
+    await _visualize_strain_vs_concentration_internal(dataset, **kwargs)
+    
+    print("\n--- Visualizing Impurity Maxima ---")
+    await _visualize_impurity_maxima_internal(dataset, **kwargs)
 
 if __name__ == "__main__":
     asyncio.run(main())

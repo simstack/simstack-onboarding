@@ -475,8 +475,8 @@ wheels = [
 
 [[package]]
 name = "simstack"
-version = "0.3.0.dev226"
-source = { git = "https://github.com/simstack/simstack.git?rev=feature-compressed-datasets#b6a5658b05a4950cd5c5ede031116f2053d71f34" }
+version = "0.3.0.dev227"
+source = { git = "https://github.com/simstack/simstack.git?rev=feature-compressed-datasets#e91853bab04a9d7805802e4285c1c6227210622e" }
 dependencies = [
     { name = "cloudpickle" },
     { name = "coolname" },
