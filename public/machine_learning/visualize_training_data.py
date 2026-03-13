@@ -1,6 +1,7 @@
 import asyncio
 
 from odmantic import ObjectId
+import pandas as pd
 from simstack.core.context import context
 from simstack.core.node import node
 from simstack.models import Parameters
@@ -19,6 +20,75 @@ from simstack.models.pandas_model import PandasModel
 from simstack.models.charts_artifact import create_simple_scatter_chart
 
 
+def _configure_heatmap_series(
+    heatmap_chart,
+    *,
+    x_name: str,
+    y_name: str,
+    color_name: str,
+    color_domain=None,
+    color_range=None,
+):
+    if heatmap_chart.series and isinstance(heatmap_chart.series[0], AGHeatmapSeriesConfig):
+        heatmap_chart.series[0].xName = x_name
+        heatmap_chart.series[0].yName = y_name
+        heatmap_chart.series[0].colorName = color_name
+        if color_domain is not None:
+            heatmap_chart.series[0].colorDomain = color_domain
+        if color_range is not None:
+            heatmap_chart.series[0].colorRange = color_range
+
+
+async def _save_matrix_heatmap(
+    matrix_frame,
+    title: str,
+    task_id,
+    node_runner,
+    charts: list,
+    value_key: str,
+    color_name: str,
+    x_name: str = "Column",
+    y_name: str = "Row",
+    color_domain=None,
+    color_range=None,
+):
+    heatmap_data = []
+    for row_name in matrix_frame.index:
+        for col_name in matrix_frame.columns:
+            value = matrix_frame.loc[row_name, col_name]
+            if pd.isna(value):
+                continue
+            heatmap_data.append(
+                {
+                    "x_feature": str(col_name),
+                    "y_feature": str(row_name),
+                    value_key: float(value),
+                }
+            )
+
+    heatmap_chart = create_simple_heatmap_chart(
+        data=heatmap_data,
+        x_key="x_feature",
+        y_key="y_feature",
+        color_key=value_key,
+        title=title,
+        parent_id=ObjectId(task_id) if task_id else None,
+    )
+
+    _configure_heatmap_series(
+        heatmap_chart,
+        x_name=x_name,
+        y_name=y_name,
+        color_name=color_name,
+        color_domain=color_domain,
+        color_range=color_range,
+    )
+
+    await context.db.save(heatmap_chart)
+    charts.append(heatmap_chart)
+    node_runner.info(f"Saved heatmap: {title}")
+
+
 async def _save_correlation_heatmap(
     corr_frame,
     title: str,
@@ -27,33 +97,85 @@ async def _save_correlation_heatmap(
     charts: list,
     x_name: str = "Column",
     y_name: str = "Row",
+    color_name: str = "Pearson correlation",
 ):
+    await _save_matrix_heatmap(
+        corr_frame,
+        title=title,
+        task_id=task_id,
+        node_runner=node_runner,
+        charts=charts,
+        value_key="correlation",
+        color_name=color_name,
+        x_name=x_name,
+        y_name=y_name,
+        color_domain=[-1.0, 1.0],
+        color_range=["#2166ac", "#f7f7f7", "#b2182b"],
+    )
+
+
+def _format_interval_label(interval) -> str:
+    return f"{interval.left:.3g} to {interval.right:.3g}"
+
+
+async def _save_property_space_impurity_heatmap(
+    df: pd.DataFrame,
+    *,
+    x_col: str,
+    y_col: str,
+    impurity_col: str,
+    title: str,
+    task_id,
+    node_runner,
+    charts: list,
+    bins: int = 10,
+):
+    clean_df = df[[x_col, y_col, impurity_col]].dropna().copy()
+    if clean_df.empty:
+        return
+
+    x_bin_count = min(bins, int(clean_df[x_col].nunique()))
+    y_bin_count = min(bins, int(clean_df[y_col].nunique()))
+    if x_bin_count < 2 or y_bin_count < 2:
+        return
+
+    clean_df["x_bin"] = pd.cut(clean_df[x_col], bins=x_bin_count, duplicates="drop")
+    clean_df["y_bin"] = pd.cut(clean_df[y_col], bins=y_bin_count, duplicates="drop")
+    grouped = (
+        clean_df.dropna(subset=["x_bin", "y_bin"])
+        .groupby(["x_bin", "y_bin"], observed=True)[impurity_col]
+        .mean()
+        .reset_index(name="average_impurity")
+    )
+    if grouped.empty:
+        return
+
     heatmap_data = []
-    for row_name in corr_frame.index:
-        for col_name in corr_frame.columns:
-            heatmap_data.append(
-                {
-                    "x_feature": str(col_name),
-                    "y_feature": str(row_name),
-                    "correlation": float(corr_frame.loc[row_name, col_name]),
-                }
-            )
+    for _, row in grouped.iterrows():
+        heatmap_data.append(
+            {
+                "x_bin": _format_interval_label(row["x_bin"]),
+                "y_bin": _format_interval_label(row["y_bin"]),
+                "average_impurity": float(row["average_impurity"]),
+            }
+        )
 
     heatmap_chart = create_simple_heatmap_chart(
         data=heatmap_data,
-        x_key="x_feature",
-        y_key="y_feature",
-        color_key="correlation",
+        x_key="x_bin",
+        y_key="y_bin",
+        color_key="average_impurity",
         title=title,
         parent_id=ObjectId(task_id) if task_id else None,
     )
-
-    if heatmap_chart.series and isinstance(heatmap_chart.series[0], AGHeatmapSeriesConfig):
-        heatmap_chart.series[0].xName = x_name
-        heatmap_chart.series[0].yName = y_name
-        heatmap_chart.series[0].colorName = "Pearson correlation"
-        heatmap_chart.series[0].colorDomain = [-1.0, 1.0]
-        heatmap_chart.series[0].colorRange = ["#2166ac", "#f7f7f7", "#b2182b"]
+    impurity_label = impurity_col.split("_")[0]
+    _configure_heatmap_series(
+        heatmap_chart,
+        x_name="Yield strength bin (MPa)",
+        y_name="Fracture strain bin",
+        color_name=f"Average {impurity_label} concentration (wt%)",
+        color_range=["#fff7ec", "#fdbb84", "#d7301f"],
+    )
 
     await context.db.save(heatmap_chart)
     charts.append(heatmap_chart)
@@ -172,6 +294,21 @@ async def _visualize_strain_vs_concentration_internal(dataset: PandasModel, **kw
             x_name="Impurity target",
             y_name="Model input feature",
         )
+        spearman_feature_target_corr = (
+            df[model_feature_cols + impurity_cols]
+            .corr(method="spearman")
+            .loc[model_feature_cols, impurity_cols]
+        )
+        await _save_correlation_heatmap(
+            spearman_feature_target_corr,
+            title="Spearman ML Feature-to-Target Heatmap",
+            task_id=task_id,
+            node_runner=node_runner,
+            charts=charts,
+            x_name="Impurity target",
+            y_name="Model input feature",
+            color_name="Spearman correlation",
+        )
 
     engineered_feature_data = {}
     if all(col in df.columns for col in ("ultimate_strength_MPa", "yield_strength_MPa")):
@@ -196,6 +333,20 @@ async def _visualize_strain_vs_concentration_internal(dataset: PandasModel, **kw
             x_name="Impurity target",
             y_name="Engineered feature",
         )
+
+    if all(col in df.columns for col in ("yield_strength_MPa", "fracture_strain")):
+        for impurity_col in impurity_cols:
+            impurity_label = impurity_col.split("_")[0]
+            await _save_property_space_impurity_heatmap(
+                df,
+                x_col="yield_strength_MPa",
+                y_col="fracture_strain",
+                impurity_col=impurity_col,
+                title=f"Property-Space Heatmap: Average {impurity_label} Concentration",
+                task_id=task_id,
+                node_runner=node_runner,
+                charts=charts,
+            )
 
     if hasattr(node_runner, 'result'):
         node_runner.result = {"charts_count": len(charts), "correlation_matrix": corr.to_dict()}
