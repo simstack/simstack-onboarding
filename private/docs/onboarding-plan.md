@@ -31,8 +31,7 @@
 - Run the plot_one_curve node from public/plot_one_curve.py
 - Inspect the results, let people play with chart options
 
-### 3.2 Create the training data 
-
+### 3.2 Create the training data
 - explain public/extract_stress_strain_features.py
 - based on public/plot_one_curve.py, motivate people to write private/analzye_one_curve.py
 - explain why it is useful to have: models/stress_strain_model.py
