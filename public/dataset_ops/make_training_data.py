@@ -88,8 +88,9 @@ async def make_training_data(curves_dataset: ArrayStorage, parameter_dataset: Pa
         
     training_df = pd.concat(all_dfs, ignore_index=True)
 
-    training_data_model = PandasModel(field_name=dataset.field_name + "training_data")
+    training_data_model = PandasModel(field_name=curves_dataset.field_name + "training_data")
     training_data_model.table = training_df
+
 
     await context.db.save(training_data_model)
     node_runner.info(f"Saved training_data dataset with {len(training_df)} rows")

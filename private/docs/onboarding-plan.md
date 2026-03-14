@@ -1,7 +1,9 @@
 # Onboarding Plan
 
-1) Introduction (WW, Powerpoint, ca. 10-15 min)
-2) UI Intro & First Steps (Artem, ca. 20-30 min)
+1) Motivation (Powerpoint, WW 5 min)
+2) UI Intro & E-V Curve, 
+3) Architechture (WW, Powerpoint, ca. 10 min)
+4) Adder  &Add-Multiply WF (WW, ca. 10 min)
 3) Machine Learning (Jörg, ca. 20-30 min)
 4) Future Plans (WW, ca. 10 min)
 5) Q&A (all)

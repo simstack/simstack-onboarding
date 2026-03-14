@@ -18,7 +18,6 @@ async def train_impurity_regressor(dataset: PandasModel, **kwargs):
     node_runner = kwargs.get("node_runner")
     
     # 3. Setup Regression Analysis
-    # kwargs can include use_scaling and use_engineered_features flags
     analysis = RegressionAnalysis(dataset, **kwargs)
     await analysis.make_model_data()
 

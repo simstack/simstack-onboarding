@@ -18,6 +18,5 @@ async def plot_one_curve_helper(stress_data: ArrayStorage, strain_data: ArraySto
         y_key="Stress",
         title=f"Stress vs Strain - Curve {curve_number.value}"
     )
-    chart.parent_id = ObjectId(kwargs["task_id"])
     await context.db.save(chart)
     return chart
