@@ -45,7 +45,6 @@ async def save_scatter_plot(y_true, y_pred, title, x_label, y_label, task_id, **
         x_key=x_label,
         y_key=y_label,
         title=title,
-        parent_id=ObjectId(task_id) if task_id else None
     )
     await context.db.save(chart)
     return chart

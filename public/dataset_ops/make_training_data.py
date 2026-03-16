@@ -52,8 +52,8 @@ async def _process_batch_internal(curves_dataset: ArrayStorage, parameter_datase
 
 
 @node
-async def process_batch(curces_dataset: ArrayStorage, parameters_dataset: PandasModel, batch_start: IntData, batch_end: IntData, **kwargs):
-    return await _process_batch_internal(curces_dataset, parameters_dataset, batch_start, batch_end, **kwargs)
+async def process_batch(curves_dataset: ArrayStorage, parameters_dataset: PandasModel, batch_start: IntData, batch_end: IntData, **kwargs):
+    return await _process_batch_internal(curves_dataset, parameters_dataset, batch_start, batch_end, **kwargs)
 
 
 @node(parameters=Parameters(force_rerun=True))
