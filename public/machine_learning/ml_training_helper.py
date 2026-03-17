@@ -177,7 +177,7 @@ class RegressionAnalysis:
             ))
 
             # Test data
-            setattr(self.node_runner, f"train.{target}",
+            setattr(self.node_runner, f"test.{target}",
                     await save_scatter_plot(
                 y_true_test, y_pred_test[:, i],
                 title=f"Test: {target}",
