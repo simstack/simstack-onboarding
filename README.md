@@ -12,31 +12,24 @@ Some jupyter instance should pop up
 
 ## Installation 
 
-1. In the jupyter instance go to "+" and open a terminal
-2. Install uv https://docs.astral.sh/uv/getting-started/installation/#installation-methods
-3. Add it to your shell: source $HOME/.local/bin/env 
-4. Clone/fork this repo: git clone https://github.com/simstack/simstack-onboarding.git (fork if you want to commit changes)
-5. In simstack-onboarding run uv sync --locked 
-6. In the home directory make a directory simstack: mkdir simstack
-7. go to simstack-onboarding 
-8. create a simstack.toml file (on the left in the jupyter instance, navigate to simstack-onboarding, click on "new file" in the file folder):
-9. uv run create_model_table --dir private --dir public
-10. uv run create_node_table --dir private --dir public
-11. set up local resource in UI, go to tab: Profile, add a resource, name it "local", hostname: "localhost",
-12. export PYTHONPATH=\`pwd\` (note the backslash, add to your .bashrc if you want it to be permanent)
-13. uv run simstack_runner --resource local --no-pull
-
-```toml
-[parameters]
-[parameters.general]
-use_db = true
-workdir_self = "PATH TO YOUR WORKDIR"
-# these are parameters for one user for all hosts
-[parameters.db]
-database = "USERNAME_data"
-test_database = "USERNAME_test"
-connection_string="CONNECTION STRING"
+1. Open https://pmd-simstack-demo.ydns.eu/login, sign in, go to Profile, and create a new resource:
+```resource name: local
+local/display name: local
+hostname: any value (for example localhost)
 ```
+2. Save the resource, then generate/rotate and download the token for that local resource.
+3. Download your simstack.toml from Profile and make sure the filename is exactly simstack.toml (lowercase, exact name).
+4. Open https://pyiron.material-digital.de, sign in with SSO, launch the Simstack Onboarding template, and wait until Jupyter is fully up.
+5. In Jupyter file browser, open simstack-onboarding and upload simstack.toml into that folder.
+6. Open a terminal in Jupyter and run step by step:
+```bash
+cd ~/simstack-onboarding
+ls -l simstack.toml
+uv run create_model_table --dir model --dir private --dir public
+uv run create_node_table --dir model --dir private --dir public
+uv run simstack_runner --resource local --no-pull
+```
+
 ## Running the first workflow
 
 1. in the UI go to submit 
