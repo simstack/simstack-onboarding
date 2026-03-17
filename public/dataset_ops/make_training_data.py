@@ -7,6 +7,7 @@ from simstack.models import Parameters, StringData, IntData
 from simstack.models.array_storage import ArrayStorage
 from simstack.models.pandas_model import PandasModel
 
+from models.pandas_helper import PandasHelper
 from public.dataset_ops.extract_stress_strain_features import extract_stress_strain_features
 
 
@@ -48,7 +49,8 @@ async def _process_batch_internal(curves_dataset: ArrayStorage, parameter_datase
     batch_df = pd.DataFrame(results)
     batch_result_model = PandasModel(field_name=f"{curves_dataset.name}_batch_{batch_start.value}")
     batch_result_model.table = batch_df
-    return batch_result_model
+    pandas_helper = PandasHelper(content_ = batch_result_model.content_)
+    return pandas_helper
 
 
 @node
@@ -80,9 +82,10 @@ async def make_training_data(curves_dataset: ArrayStorage, parameter_dataset: Pa
     node_runner.info(f"Starting {len(tasks)} batches for {total_records} records with concurrency {concurrency_limit}")
     
     batch_results = await asyncio.gather(*tasks)
-    
+
+    models = [PandasModel(field_name=f"batch_result.{index}",content_=model.content_) for index,model in enumerate(batch_results) ]
     # Combine results
-    all_dfs = [model.table for model in batch_results if hasattr(model, 'table')]
+    all_dfs = [model.table for model in models if hasattr(model, 'table')]
     if not all_dfs:
         return node_runner.fail("No results generated")
         
