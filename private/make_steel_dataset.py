@@ -163,8 +163,9 @@ def make_random_compositions_array(n_random: int, seed: int) -> np.ndarray:
 def curves_to_dataframes(
     cases: list[SteelComposition],
     strain: np.ndarray,
-) -> tuple[np.ndarray, pd.DataFrame]:
-    summary_rows = []
+) -> tuple[np.ndarray, pd.DataFrame, pd.DataFrame]:
+    impurity_rows = []
+    properties_rows = []
     # Collect all stress columns in a list to stack them later
     stress_arrays = [strain]
 
@@ -179,13 +180,19 @@ def curves_to_dataframes(
 
         stress_arrays.append(result["stress"])
 
-        summary_rows.append(
+        impurity_rows.append(
             {
                 "label": case.label,
                 "C_wt_percent": case.C,
                 "Mn_wt_percent": case.Mn,
                 "P_wt_percent": case.P,
                 "S_wt_percent": case.S,
+            }
+        )
+
+        properties_rows.append(
+            {
+                "label": case.label,
                 "yield_strength_MPa": result["yield_strength_MPa"],
                 "ultimate_tensile_strength_MPa": result["ultimate_tensile_strength_MPa"],
                 "uniform_strain": result["uniform_strain"],
@@ -197,26 +204,31 @@ def curves_to_dataframes(
     # curves_array: (n_cases + 1, n_points)
     # The first row is the strain array.
     curves_array = np.stack(stress_arrays, axis=0)
-    summary_df = pd.DataFrame(summary_rows)
-    return curves_array, summary_df
+    impurity_df = pd.DataFrame(impurity_rows)
+    properties_df = pd.DataFrame(properties_rows)
+    return curves_array, impurity_df, properties_df
 
 
 def save_outputs(
     curves_array: np.ndarray,
-    summary_df: pd.DataFrame,
-    output_dir: Path,
-    compositions_array: np.ndarray | None = None,
+        impurity_df: pd.DataFrame,
+        properties_df: pd.DataFrame,
+        output_dir: Path,
+        compositions_array: np.ndarray | None = None,
 ) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     curves_path = output_dir / "steel_stress_strain_curves2.npy"
-    summary_path = output_dir / "steel_curve_summary2.csv"
+    impurity_path = output_dir / "steel_impurity_concentrations2.csv"
+    properties_path = output_dir / "steel_stress_strain_properties2.csv"
 
     np.save(curves_path, curves_array)
-    summary_df.to_csv(summary_path, index=False)
+    impurity_df.to_csv(impurity_path, index=False)
+    properties_df.to_csv(properties_path, index=False)
 
     print(f"Saved curves to:  {curves_path}")
-    print(f"Saved summary to: {summary_path}")
+    print(f"Saved impurity concentrations to: {impurity_path}")
+    print(f"Saved stress-strain properties to: {properties_path}")
 
     if compositions_array is not None:
         comp_path = output_dir / "random_steel_compositions2.npy"
@@ -297,14 +309,14 @@ def main() -> None:
     strain_sparse = np.linspace(boundary_strain, args.max_strain, n_sparse)
     strain = np.concatenate([strain_dense, strain_sparse])
 
-    cases = make_default_cases()
+    cases = [] # make_default_cases()
     compositions_array = None
     if args.n_random > 0:
         cases.extend(make_random_cases(args.n_random, args.seed))
         compositions_array = make_random_compositions_array(args.n_random, args.seed)
 
-    curves_array, summary_df = curves_to_dataframes(cases, strain)
-    save_outputs(curves_array, summary_df, args.output_dir, compositions_array)
+    curves_array, impurity_df, properties_df = curves_to_dataframes(cases, strain)
+    save_outputs(curves_array, impurity_df, properties_df, args.output_dir, compositions_array)
 
     if args.plot:
         labels = [c.label for c in cases]
