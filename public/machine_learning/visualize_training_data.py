@@ -171,12 +171,12 @@ async def _visualize_strain_vs_concentration_internal(dataset: PandasModel, **kw
         )
         await _save_correlation_heatmap(
             spearman_feature_target_corr,
-            title="Spearman ML Feature-to-Target Heatmap",
+            title="Spearman Correlation: Concentrations vs Stress-Strain Features",
             task_id=task_id,
             node_runner=node_runner,
             charts=charts,
-            x_name="Impurity target",
-            y_name="Model input feature",
+            x_name="Concentration",
+            y_name="Stress-Strain Feature",
             color_name="Spearman correlation",
         )
 
