@@ -1,3 +1,5 @@
+import pprint
+
 from simstack.core.node import node
 from simstack.models import IntData, Parameters
 from simstack.models.pandas_model import PandasModel
@@ -25,16 +27,20 @@ async def test_chart_generation(sample_data:PandasModel, **kwargs):
 
     # Create Plots
     # Plot 1: R2 vs tree_depth (for each n_estimators)
-    depth_all_data = []
-    depth_series = []
-    for est in estimators:
-        y_key = f"r2_est_{est}"
-        for _, row in df[df["n_estimators"] == est].iterrows():
-            depth_all_data.append({
-                "depth": int(row["tree_depth"]),
-                y_key: float(row["R2_average"])
-            })
-        depth_series.append(AGScatterSeriesConfig(xKey="depth", yKey=y_key, title=f"estimators={est}"))
+    depth_data_map = {}
+    for _, row in df.iterrows():
+        d = int(row["tree_depth"])
+        if d not in depth_data_map:
+            depth_data_map[d] = {"depth": d}
+        depth_data_map[d][f"r2_est_{int(row['n_estimators'])}"] = float(row["R2_average"])
+
+    pprint.pprint(depth_data_map)
+
+    depth_all_data = sorted(depth_data_map.values(), key=lambda x: x["depth"])
+    depth_series = [
+        AGScatterSeriesConfig(xKey="depth", yKey=f"r2_est_{est}", title=f"estimators={est}")
+        for est in estimators
+    ]
 
     depth_chart = ChartArtifactModel(
         title=AGChartTitleConfig(text="R2 vs Tree Depth (Sample)"),
@@ -47,16 +53,19 @@ async def test_chart_generation(sample_data:PandasModel, **kwargs):
     )
 
     # Plot 2: R2 vs n_estimators (for each tree_depth)
-    est_all_data = []
-    est_series = []
-    for depth in depths:
-        y_key = f"r2_depth_{depth}"
-        for _, row in df[df["tree_depth"] == depth].iterrows():
-            est_all_data.append({
-                "estimators": int(row["n_estimators"]),
-                y_key: float(row["R2_average"])
-            })
-        est_series.append(AGScatterSeriesConfig(xKey="estimators", yKey=y_key, title=f"depth={depth}"))
+    est_data_map = {}
+    for _, row in df.iterrows():
+        e = int(row["n_estimators"])
+        if e not in est_data_map:
+            est_data_map[e] = {"estimators": e}
+        est_data_map[e][f"r2_depth_{int(row['tree_depth'])}"] = float(row["R2_average"])
+
+    pprint.pprint(est_data_map)
+    est_all_data = sorted(est_data_map.values(), key=lambda x: x["estimators"])
+    est_series = [
+        AGScatterSeriesConfig(xKey="estimators", yKey=f"r2_depth_{depth}", title=f"depth={depth}")
+        for depth in depths
+    ]
 
     est_chart = ChartArtifactModel(
         title=AGChartTitleConfig(text="R2 vs Number of Estimators (Sample)"),

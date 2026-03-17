@@ -28,8 +28,8 @@ async def sweep_hyperparameters(
     """
     node_runner = kwargs.get("node_runner")
     
-    depth_range = list(range(depth_min.value, depth_max.value + 1))
-    estimators_range = list(range(estimators_min.value, estimators_max.value + 1, 10))
+    depth_range = list(range(depth_min.value, depth_max.value + 1, 2))
+    estimators_range = list(range(estimators_min.value, estimators_max.value + 1, 20))
 
     element_selector = ElementSelector(use_C=True, use_Mn=True, use_P=True, use_S=True)
     use_scaling = BooleanData(value=True)
@@ -99,17 +99,18 @@ async def sweep_hyperparameters(
     
     # Create Plots
     # Plot 1: R2 vs tree_depth (for each n_estimators)
-    depth_all_data = []
-    depth_series = []
-    for est in estimators_range:
-        y_key = f"r2_est_{est}"
-        for res in results_list:
-            if res["n_estimators"] == est:
-                depth_all_data.append({
-                    "depth": res["tree_depth"],
-                    y_key: res["R2_average"]
-                })
-        depth_series.append(AGScatterSeriesConfig(xKey="depth", yKey=y_key, title=f"estimators={est}"))
+    depth_data_map = {}
+    for res in results_list:
+        d = res["tree_depth"]
+        if d not in depth_data_map:
+            depth_data_map[d] = {"depth": d}
+        depth_data_map[d][f"r2_est_{res['n_estimators']}"] = res["R2_average"]
+    
+    depth_all_data = sorted(depth_data_map.values(), key=lambda x: x["depth"])
+    depth_series = [
+        AGScatterSeriesConfig(xKey="depth", yKey=f"r2_est_{est}", title=f"estimators={est}")
+        for est in estimators_range
+    ]
 
     depth_chart = ChartArtifactModel(
         title=AGChartTitleConfig(text="R2 vs Tree Depth"),
@@ -122,17 +123,18 @@ async def sweep_hyperparameters(
     )
 
     # Plot 2: R2 vs n_estimators (for each tree_depth)
-    est_all_data = []
-    est_series = []
-    for depth in depth_range:
-        y_key = f"r2_depth_{depth}"
-        for res in results_list:
-            if res["tree_depth"] == depth:
-                est_all_data.append({
-                    "estimators": res["n_estimators"],
-                    y_key: res["R2_average"]
-                })
-        est_series.append(AGScatterSeriesConfig(xKey="estimators", yKey=y_key, title=f"depth={depth}"))
+    est_data_map = {}
+    for res in results_list:
+        e = res["n_estimators"]
+        if e not in est_data_map:
+            est_data_map[e] = {"estimators": e}
+        est_data_map[e][f"r2_depth_{res['tree_depth']}"] = res["R2_average"]
+
+    est_all_data = sorted(est_data_map.values(), key=lambda x: x["estimators"])
+    est_series = [
+        AGScatterSeriesConfig(xKey="estimators", yKey=f"r2_depth_{depth}", title=f"depth={depth}")
+        for depth in depth_range
+    ]
 
     est_chart = ChartArtifactModel(
         title=AGChartTitleConfig(text="R2 vs Number of Estimators"),
