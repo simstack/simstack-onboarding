@@ -169,20 +169,21 @@ class RegressionAnalysis:
             # Scatter Plots using ChartArtifactModel
             # Training data
             y_true_train = self.y_train.iloc[:, i] if len(self.targets) > 1 else self.y_train
-            await save_scatter_plot(
+            setattr(self.node_runner,f"train.{target}", await save_scatter_plot(
                 y_true_train, y_pred_train[:, i],
                 title=f"Train: {target}",
                 x_label="Expected", y_label="Predicted",
                 task_id=self.task_id
-            )
+            ))
 
             # Test data
-            await save_scatter_plot(
+            setattr(self.node_runner, f"train.{target}",
+                    await save_scatter_plot(
                 y_true_test, y_pred_test[:, i],
                 title=f"Test: {target}",
                 x_label="Expected", y_label="Predicted",
                 task_id=self.task_id
-            )
+            ))
 
         # Total metrics
         total_r2 = float(r2_score(self.y_test, y_pred_test, multioutput='uniform_average'))
