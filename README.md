@@ -25,8 +25,8 @@ hostname: any value (for example localhost)
 ```bash
 cd ~/simstack-onboarding
 ls -l simstack.toml
-uv run create_model_table --dir model --dir private --dir public
-uv run create_node_table --dir model --dir private --dir public
+uv run create_model_table --dir models --dir private --dir public
+uv run create_node_table --dir models --dir private --dir public
 uv run simstack_runner --resource local --no-pull
 ```
 
