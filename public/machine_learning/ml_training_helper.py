@@ -119,7 +119,7 @@ class RegressionAnalysis:
         # 3. Split data
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-    async def model_analysis(self, model: Any) -> RegressionResult:
+    async def model_analysis(self, model: Any, with_plot=True) -> RegressionResult:
         self.model = model
         self.node_runner.info(f"Training {type(model).__name__} on {len(self.X_train)} samples for targets: {self.targets}...")
 
@@ -169,21 +169,22 @@ class RegressionAnalysis:
             # Scatter Plots using ChartArtifactModel
             # Training data
             y_true_train = self.y_train.iloc[:, i] if len(self.targets) > 1 else self.y_train
-            setattr(self.node_runner,f"train.{target}", await save_scatter_plot(
-                y_true_train, y_pred_train[:, i],
-                title=f"Train: {target}",
-                x_label="Expected", y_label="Predicted",
-                task_id=self.task_id
-            ))
+            if with_plot:
+                setattr(self.node_runner,f"train.{target}", await save_scatter_plot(
+                    y_true_train, y_pred_train[:, i],
+                    title=f"Train: {target}",
+                    x_label="Expected", y_label="Predicted",
+                    task_id=self.task_id
+                ))
 
-            # Test data
-            setattr(self.node_runner, f"test.{target}",
-                    await save_scatter_plot(
-                y_true_test, y_pred_test[:, i],
-                title=f"Test: {target}",
-                x_label="Expected", y_label="Predicted",
-                task_id=self.task_id
-            ))
+                # Test data
+                setattr(self.node_runner, f"test.{target}",
+                        await save_scatter_plot(
+                    y_true_test, y_pred_test[:, i],
+                    title=f"Test: {target}",
+                    x_label="Expected", y_label="Predicted",
+                    task_id=self.task_id
+                ))
 
         # Total metrics
         total_r2 = float(r2_score(self.y_test, y_pred_test, multioutput='uniform_average'))
