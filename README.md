@@ -27,8 +27,8 @@ default: true
 5. In Jupyter file browser, open the simstack-onboarding subfolder and upload simstack.toml into that folder.
 6. Open a terminal in Jupyter and run step by step:
 ```bash
-uv run create_model_table --dir models --dir private --dir public
-uv run create_node_table --dir models --dir private --dir public
+uv run create_model_table --dir models --dir public
+uv run create_node_table --dir models --dir public
 uv run simstack_runner --resource pyiron --no-pull --detach False
 ```
 
