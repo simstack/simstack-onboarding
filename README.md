@@ -4,30 +4,32 @@ Repo for the onboarding and introduction to Simstack II
 
 ## Access
 
-1. Register your account at: https://simstack.int.kit.edu
-2. Register access to the jupyterhub: https://material-digital.de/
-3. Go to: https://pyiron.material-digital.de/
+1. Register access to the jupyterhub: https://material-digital.de/
+2. Go to: https://pyiron.material-digital.de/
 
 Some jupyter instance should pop up
+
+# Web UI: 
+This is the web UI for Simstack II, where you can submit and monitor workflows, manage resources, and inspect results.
+Go to https://pmd-simstack-demo.ydns.eu/ and login with the provided credentials. 
 
 ## Installation 
 
 1. Open https://pmd-simstack-demo.ydns.eu/login, sign in, go to Profile, and create a new resource:
-```resource name: local
-local/display name: local
-hostname: any value (for example localhost)
+```resource name: pyiron
+local/display name: pyiron
+hostname: any value (for example pyiron.material-digital.de)
+default: true
 ```
 2. Save the resource, then generate/rotate and download the token for that local resource.
 3. Download your simstack.toml from Profile and make sure the filename is exactly simstack.toml (lowercase, exact name).
-4. Open https://pyiron.material-digital.de, sign in with SSO, launch the Simstack Onboarding template, and wait until Jupyter is fully up.
-5. In Jupyter file browser, open simstack-onboarding and upload simstack.toml into that folder.
+4. Open https://pyiron.material-digital.de, sign in with SSO, launch the Simstack Onboarding template
+5. In Jupyter file browser, open the simstack-onboarding subfolder and upload simstack.toml into that folder.
 6. Open a terminal in Jupyter and run step by step:
 ```bash
-cd ~/simstack-onboarding
-ls -l simstack.toml
 uv run create_model_table --dir models --dir private --dir public
 uv run create_node_table --dir models --dir private --dir public
-uv run simstack_runner --resource local --no-pull
+uv run simstack_runner --resource pyiron --no-pull --detach False
 ```
 
 ## Running the first workflow
@@ -36,7 +38,7 @@ uv run simstack_runner --resource local --no-pull
 2. under public / first_steps / simple_operations / add click "favorite"
 3. select "favorite"
 4. fill in some numbers for a and b 
-5. click submit worklow 
+5. click submit workflow 
 6. in the task tabs you should see an entry "add", first yellow, then hopefully green
 7. click on the green entry and you should see the inputs / outputs / logs of the workflow
 8. in the jupyter instance lots of log entries should have been printed to the terminal
