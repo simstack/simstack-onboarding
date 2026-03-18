@@ -4,46 +4,41 @@ Repo for the onboarding and introduction to Simstack II
 
 ## Access
 
-1. Register your account at: https://simstack.int.kit.edu
-2. Register access to the jupyterhub: https://material-digital.de/
-3. Go to: https://pyiron.material-digital.de/
+1. Register access to the jupyterhub: https://material-digital.de/
+2. Go to: https://pyiron.material-digital.de/
 
 Some jupyter instance should pop up
 
+# Web UI: 
+This is the web UI for Simstack II, where you can submit and monitor workflows, manage resources, and inspect results.
+Go to https://pmd-simstack-demo.ydns.eu/ and login with the provided credentials. 
+
 ## Installation 
 
-1. In the jupyter instance go to "+" and open a terminal
-2. Install uv https://docs.astral.sh/uv/getting-started/installation/#installation-methods
-3. Add it to your shell: source $HOME/.local/bin/env 
-4. Clone/fork this repo: git clone https://github.com/simstack/simstack-onboarding.git (fork if you want to commit changes)
-5. In simstack-onboarding run uv sync --locked 
-6. In the home directory make a directory simstack: mkdir simstack
-7. go to simstack-onboarding 
-8. create a simstack.toml file (on the left in the jupyter instance, navigate to simstack-onboarding, click on "new file" in the file folder):
-9. uv run create_model_table --dir private --dir public
-10. uv run create_node_table --dir private --dir public
-11. set up local resource in UI, go to tab: Profile, add a resource, name it "local", hostname: "localhost",
-12. export PYTHONPATH=\`pwd\` (note the backslash, add to your .bashrc if you want it to be permanent)
-13. uv run simstack_runner --resource local --no-pull
-
-```toml
-[parameters]
-[parameters.general]
-use_db = true
-workdir_self = "PATH TO YOUR WORKDIR"
-# these are parameters for one user for all hosts
-[parameters.db]
-database = "USERNAME_data"
-test_database = "USERNAME_test"
-connection_string="CONNECTION STRING"
+1. Open https://pmd-simstack-demo.ydns.eu/login, sign in, go to Profile, and create a new resource:
+```resource name: pyiron
+local/display name: pyiron
+hostname: any value (for example pyiron.material-digital.de)
+default: true
 ```
+2. Save the resource, then generate/rotate and download the token for that local resource.
+3. Download your simstack.toml from Profile and make sure the filename is exactly simstack.toml (lowercase, exact name).
+4. Open https://pyiron.material-digital.de, sign in with SSO, launch the Simstack Onboarding template
+5. In Jupyter file browser, open the simstack-onboarding subfolder and upload simstack.toml into that folder.
+6. Open a terminal in Jupyter and run step by step:
+```bash
+uv run create_model_table --dir models --dir public
+uv run create_node_table --dir models --dir public
+uv run simstack_runner --resource pyiron --no-pull --detach False
+```
+
 ## Running the first workflow
 
 1. in the UI go to submit 
 2. under public / first_steps / simple_operations / add click "favorite"
 3. select "favorite"
 4. fill in some numbers for a and b 
-5. click submit worklow 
+5. click submit workflow 
 6. in the task tabs you should see an entry "add", first yellow, then hopefully green
 7. click on the green entry and you should see the inputs / outputs / logs of the workflow
 8. in the jupyter instance lots of log entries should have been printed to the terminal
