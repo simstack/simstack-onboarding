@@ -1,17 +1,15 @@
 # Simstack Onboarding
 Repo for the onboarding and introduction to Simstack II
 
+# Web UI: 
+This is the web UI for Simstack II, where you can submit and monitor workflows, manage resources, and inspect results.
+Go to https://pmd-simstack-demo.ydns.eu/ and login with the provided credentials. 
 
 ## Access
 
 1. Register access to the jupyterhub: https://material-digital.de/
 2. Go to: https://pyiron.material-digital.de/
-
-Some jupyter instance should pop up
-
-# Web UI: 
-This is the web UI for Simstack II, where you can submit and monitor workflows, manage resources, and inspect results.
-Go to https://pmd-simstack-demo.ydns.eu/ and login with the provided credentials. 
+3. Start the "Simstack Onboarding" server
 
 ## Installation 
 
