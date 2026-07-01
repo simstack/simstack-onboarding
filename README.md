@@ -20,7 +20,7 @@ hostname: any value (for example pyiron.material-digital.de)
 default: true
 ```
 2. Save the resource, then generate/rotate and download the token for that local resource.
-3. Download your simstack.toml from Profile and make sure the filename is exactly simstack.toml (lowercase, exact name).
+3. Download your simstack.toml from Profile and make sure the filename is exactly simstack.toml (lowercase, exact name). Inside the file manually replace part of the "connection_string" value: "mongodb:27017" -> "pmd-simstack-demo.ydns.eu:27017"
 4. Open https://pyiron.material-digital.de, sign in with SSO, launch the Simstack Onboarding template
 5. In Jupyter file browser, open the simstack-onboarding subfolder and upload simstack.toml into that folder.
 6. Open a terminal in Jupyter and run step by step:
