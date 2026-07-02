@@ -83,6 +83,41 @@ Make the use refresh the task tab while this is running to see the progress.
 
 ![make_training_data_output.png](make_training_data_output.png)
 
+### Train a model
+
+public/machine_learning/train_impurity_model.py
+
+inputs: 
+- dataset for training data
+- number of trees (<200)
+- max depth of the trees (~10)
+- random seed
+
+output: 
+- parameters of the trained model 
+- predicttions vs. actual values
+
+Learnings:
+- for some elements this works well, for others (S) it does not
+
+
+![img.png](model_training_1.png)
+
+- make people change the seed (model is stable)
+- make people play with the values of the parameters
+- for S this does not get better 
+- encourage a discussion what could be the problem ? 
+
+### Visualize the training data
+
+public/machine_learning/visualize_training_data.py
+
+Only input: training data table 
+
+![visualize_impurity_ranges.png](visualize_impurity_rangespng)
+
+TODO: there are plots in the output AND in the artifacts
+
 
 
 ## Writing your first workflow
