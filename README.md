@@ -43,6 +43,47 @@ uv run simstack_runner --resource pyiron --no-pull --detach False
 8. go to the jupyter instance and create a new terminal, go to the simstack directory
 9. you should see a new folder called "add" with an empty directory with the job_id
 
+## Moving through the demonstration 
+
+Originally it was planned to have people write their own nodes. To this end helper functions (which are not nodes) 
+have been provided so that the real nodes could be written in a few minutes.
+The actual nodes are in the public/private folders. Nodes which we wanted to provide are in the public folder
+and nodes which the users should write are in the private folder. For now we go back an forth between the two folders.
+
+### Data Resources
+
+steel_stress_strain_curves2.npy contains 8001 stress-strain-curves.
+The data is stored in a numpy array with shape (8001, ????). The first row is the strain values for all curves 
+each subsequent row is a stress-strain-curve.
+
+steel_impurity_concentrations2.npy contains the impurity concentrations for all curves.
+The data is stored in a numpy array with shape (8001, ???) 
+
+### Looking at a stress-strain-curve 
+
+public/dataset_ops/plot_one_curve.py and plot_one_curve_helper.py
+
+### Analyzing one stress-strain-curve
+
+private/analyze_one_curve.py
+
+![img.png](data/readme_images/img.png)
+
+The user selects a dataset and a curve number (> 0 and < 8001). The result is a SimpleTable with a detailed 
+analysis of the stress-strain-curve. the curve is plotted below the table and the user can zoom in and check 
+whether the extracted stress-strain values in the table are consistent with the curve.
+
+### Build the dataset for training 
+
+Submission: Select one dataset for the stress-strain-curves and one for the corresponding impurity concentrations.
+
+![make_training_data_input.png](data/readme_images/img_1.png)
+
+Make the use refresh the task tab while this is running to see the progress.
+
+![make_training_data_output.png](make_training_data_output.png)
+
+
 
 ## Writing your first workflow
 
