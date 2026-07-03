@@ -25,9 +25,13 @@ default: true
 5. In Jupyter file browser, open the simstack-onboarding subfolder and upload simstack.toml into that folder.
 6. Open a terminal in Jupyter and run step by step:
 ```bash
-uv run create_model_table --dir models --dir public
-uv run create_node_table --dir models --dir public
-uv run simstack_runner --resource pyiron --no-pull --detach False
+cd simstack-onboarding
+git pull #this gets the new nodes
+uv sync --locked # this refreshes the virtual environment
+source .venv/bin/activate # this activates the virtual environment
+uv run create_model_table --dir models --dir public # this makes the model table to use
+uv run create_node_table --dir models --dir public  # this makes the node table to use
+nohup uv run simstack_runner --resource pyiron --no-pull --detach False & sleep 1 && tail -f nohup.out # this starts the runner
 ```
 
 ## Running the first workflow
