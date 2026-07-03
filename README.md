@@ -29,8 +29,8 @@ cd simstack-onboarding
 git pull #this gets the new nodes
 uv sync --locked # this refreshes the virtual environment
 source .venv/bin/activate # this activates the virtual environment
-uv run create_model_table --dir models --dir public # this makes the model table to use
-uv run create_node_table --dir models --dir public  # this makes the node table to use
+uv run create_model_table --dir models --dir public --clear # this makes the model table from scratch
+uv run create_node_table --dir models --dir public  --clear # this makes the node table  from scratch
 nohup uv run simstack_runner --resource pyiron --no-pull --detach False & sleep 1 && tail -f nohup.out # this starts the runner
 ```
 
